@@ -1,0 +1,63 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Docker
+*.pid
+.docker/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis dump
+dump.rdb
+
+# Node modules (if you add frontend build tools later)
+node_modules/
+package-lock.json
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Secrets & Credentials
+*.pem
+*.key
+secrets/
+credentials/

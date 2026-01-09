@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Showtime - TicketHub</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: white;
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: #2d2d2d;
+            padding: 15px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #ff6b6b, #fa5252);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .back-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #4d4d4d;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: #3d3d3d;
+            transform: translateY(-2px);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-email {
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #ef4444;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .movie-header {
+            background: #2d2d2d;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            display: flex;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .movie-poster {
+            width: 200px;
+            height: 300px;
+            border-radius: 10px;
+            object-fit: cover;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .movie-info {
+            flex: 1;
+        }
+
+        .movie-title {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .movie-meta {
+            color: #94a3b8;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+        }
+
+        .theaters-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #cbd5e1;
+        }
+
+        .theater-card {
+            background: #2d2d2d;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 2px solid #3d3d3d;
+            transition: all 0.3s;
+        }
+
+        .theater-card:hover {
+            border-color: #ff6b6b;
+        }
+
+        .theater-name {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            color: white;
+        }
+
+        .showtimes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .showtime-btn {
+            padding: 15px;
+            background: #3d3d3d;
+            border: 2px solid #4d4d4d;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .showtime-btn:hover {
+            background: #ff6b6b;
+            border-color: #ff6b6b;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .showtime-time {
+            font-size: 1.3em;
+            margin-bottom: 5px;
+        }
+
+        .showtime-seats {
+            font-size: 0.9em;
+            color: #94a3b8;
+        }
+
+        .showtime-seats.limited {
+            color: #ff6b6b;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            font-size: 1.5em;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="logo">🎟️ TicketHub</div>
+            <div class="nav-links">
+                <button class="back-btn" onclick="goBack()">← Back to Events</button>
+            </div>
+            <div class="user-info">
+                <span class="user-email" id="userEmail"></span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Movie Header -->
+        <div class="movie-header" id="movieHeader">
+            <div class="loading">Loading movie details...</div>
+        </div>
+
+        <!-- Theaters Section -->
+        <div class="theaters-section">
+            <div class="section-title">🎭 Select Theater & Showtime</div>
+            <div id="theatersContainer" class="loading">
+                Loading showtimes...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let token = sessionStorage.getItem('token');
+        let userEmail = sessionStorage.getItem('userEmail');
+
+        if (!token) {
+            window.location.href = 'index.html';
+        }
+
+        document.getElementById('userEmail').textContent = userEmail;
+
+        // Get movie name from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const movieName = urlParams.get('movie');
+
+        if (!movieName) {
+            alert('No movie selected');
+            window.location.href = 'browse.html';
+        }
+
+        async function loadShowtimes() {
+            try {
+                const startTime = performance.now();
+                
+                // Use optimized endpoint
+                const response = await fetch(`http://localhost:8001/events/movie/${encodeURIComponent(movieName)}/showtimes`);
+                const showtimes = await response.json();
+                
+                const loadTime = performance.now() - startTime;
+                console.log(`Loaded showtimes in ${loadTime.toFixed(0)}ms`);
+
+                if (showtimes.length === 0) {
+                    document.getElementById('theatersContainer').innerHTML = 
+                        '<div class="loading">No showtimes available for this movie</div>';
+                    return;
+                }
+
+                // Display movie header (use first showtime for poster)
+                displayMovieHeader(showtimes[0]);
+
+                // Group showtimes by venue
+                const theaterGroups = {};
+                showtimes.forEach(showtime => {
+                    if (!theaterGroups[showtime.venue]) {
+                        theaterGroups[showtime.venue] = [];
+                    }
+                    theaterGroups[showtime.venue].push(showtime);
+                });
+
+                // Display theaters and showtimes
+                displayTheaters(theaterGroups);
+
+            } catch (error) {
+                console.error('Error loading showtimes:', error);
+                document.getElementById('theatersContainer').innerHTML = 
+                    '<div class="loading">Failed to load showtimes</div>';
+            }
+        }
+
+        function displayMovieHeader(showtime) {
+            const header = document.getElementById('movieHeader');
+            
+            const posterUrl = showtime.image_url || 'https://via.placeholder.com/200x300/667eea/ffffff?text=Movie';
+
+            header.innerHTML = `
+                <img src="${posterUrl}" 
+                     alt="${movieName}" 
+                     class="movie-poster"
+                     onerror="this.src='https://via.placeholder.com/200x300/667eea/ffffff?text=${encodeURIComponent(movieName)}'">
+                <div class="movie-info">
+                    <div class="movie-title">${movieName}</div>
+                    <div class="movie-meta">Select your preferred theater and showtime</div>
+                </div>
+            `;
+        }
+
+        function displayTheaters(theaterGroups) {
+            const container = document.getElementById('theatersContainer');
+            container.innerHTML = '';
+
+            Object.entries(theaterGroups).forEach(([theaterName, showtimes]) => {
+                const theaterCard = document.createElement('div');
+                theaterCard.className = 'theater-card';
+
+                const header = document.createElement('div');
+                header.className = 'theater-name';
+                header.textContent = `📍 ${theaterName}`;
+                theaterCard.appendChild(header);
+
+                const showtimesGrid = document.createElement('div');
+                showtimesGrid.className = 'showtimes-grid';
+
+                // Sort showtimes by start time
+                showtimes.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+                showtimes.forEach(showtime => {
+                    const btn = createShowtimeButton(showtime);
+                    showtimesGrid.appendChild(btn);
+                });
+
+                theaterCard.appendChild(showtimesGrid);
+                container.appendChild(theaterCard);
+            });
+        }
+
+        function createShowtimeButton(showtime) {
+            const btn = document.createElement('button');
+            btn.className = 'showtime-btn';
+
+            const startTime = new Date(showtime.start_time);
+            const timeString = startTime.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit'
+            });
+
+            const availableSeats = showtime.available_seats || 0;
+            const totalSeats = showtime.total_seats || 1;
+            const percentage = (availableSeats / totalSeats) * 100;
+
+            let seatsText = `${availableSeats} seats available`;
+            let seatsClass = 'showtime-seats';
+
+            if (availableSeats === 0) {
+                seatsText = 'Sold Out';
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            } else if (percentage < 20) {
+                seatsText = `Only ${availableSeats} left!`;
+                seatsClass += ' limited';
+            }
+
+            btn.innerHTML = `
+                <div class="showtime-time">${timeString}</div>
+                <div class="${seatsClass}">${seatsText}</div>
+            `;
+
+            if (availableSeats > 0) {
+                btn.onclick = () => goToBooking(showtime.id);
+            }
+
+            return btn;
+        }
+
+        function goToBooking(eventId) {
+            window.location.href = `booking.html?event=${eventId}`;
+        }
+
+        function goBack() {
+            window.location.href = 'browse.html';
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        // Load showtimes on page load
+        loadShowtimes();
+    </script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: booking_db
+    environment:
+      POSTGRES_USER: booking_user
+      POSTGRES_PASSWORD: booking_pass
+      POSTGRES_DB: booking_system
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U booking_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: booking_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: ./services/auth
+    container_name: auth_service
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://booking_user:booking_pass@postgres:5432/booking_system
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=supersecretkey-change-in-production-12345
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/auth:/app
+      - ./shared:/app/shared
+
+  events-service:
+    build: ./services/events
+    container_name: events_service
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://booking_user:booking_pass@postgres:5432/booking_system
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=supersecretkey-change-in-production-12345
+      - JWT_ALGORITHM=HS256
+      - TMDB_API_KEY=6e07419748d68121eaaf90bbd77c67e7        
+      - LASTFM_API_KEY=e1a0159bdbaec753e76e519eb7c9958d
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/events:/app
+      - ./shared:/app/shared
+
+  booking-service:
+    build: ./services/booking
+    container_name: booking_service
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://booking_user:booking_pass@postgres:5432/booking_system
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=supersecretkey-change-in-production-12345
+      - JWT_ALGORITHM=HS256
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/booking:/app
+      - ./shared:/app/shared
+
+volumes:
+  postgres_data:

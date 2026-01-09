@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TicketHub - Book Seats</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="toast.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: white;
+            min-height: 100vh;
+        }
+
+        /* Hold Expiry Timer */
+        .hold-timer {
+            position: sticky;
+            top: 80px;
+            z-index: 50;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .hold-timer.warning {
+            background: linear-gradient(135deg, #ff6b6b, #fa5252);
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+        }
+
+        .hold-timer.danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.02);
+            }
+        }
+
+        .timer-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .timer-icon {
+            font-size: 1.5em;
+        }
+
+        .timer-text {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: white;
+        }
+
+        .timer-progress-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .timer-progress {
+            height: 100%;
+            background: white;
+            border-radius: 4px;
+            transition: width 0.5s linear;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        /* Seat Selection Counter - Sticky Bottom Bar */
+        .selection-counter {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #ff6b6b, #fa5252);
+            padding: 20px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+        }
+
+        .selection-counter.active {
+            transform: translateY(0);
+        }
+
+        .selection-counter-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .counter-info {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .counter-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .counter-label {
+            font-size: 0.85em;
+            opacity: 0.9;
+            margin-bottom: 3px;
+        }
+
+        .counter-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .counter-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Seat Price Badges */
+        .seat-price {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #10b981;
+            font-size: 9px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        /* Confirmation Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: #2d2d2d;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            margin-bottom: 25px;
+        }
+
+        .modal-title {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 5px;
+            background: linear-gradient(135deg, #ff6b6b, #fa5252);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .modal-subtitle {
+            color: #94a3b8;
+        }
+
+        .modal-section {
+            margin-bottom: 25px;
+        }
+
+        .modal-section-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #cbd5e1;
+        }
+
+        .seat-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .seat-chip {
+            background: #3d3d3d;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .seat-chip-price {
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        .price-breakdown {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            color: #cbd5e1;
+        }
+
+        .price-row.total {
+            border-top: 2px solid #3d3d3d;
+            margin-top: 10px;
+            padding-top: 15px;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: white;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-btn-cancel {
+            background: #4d4d4d;
+            color: white;
+        }
+
+        .modal-btn-cancel:hover {
+            background: #3d3d3d;
+        }
+
+        .modal-btn-confirm {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .modal-btn-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Navbar */
+        .navbar {
+            background: #2d2d2d;
+            padding: 15px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #ff6b6b, #fa5252);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: #94a3b8;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-link:hover {
+            color: white;
+        }
+
+        .back-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #4d4d4d;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: #3d3d3d;
+            transform: translateY(-2px);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-email {
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #ef4444;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .event-header {
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .event-title {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .event-subtitle {
+            color: #94a3b8;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .status-badge.connected {
+            background: #10b981;
+        }
+
+        .status-badge.disconnected {
+            background: #ef4444;
+        }
+
+        .legend {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-box {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .legend-box.available {
+            background: #10b981;
+        }
+
+        .legend-box.held {
+            background: #ff6b6b;
+        }
+
+        .legend-box.my-hold {
+            background: #ff6b6b;
+        }
+
+        .legend-box.booked {
+            background: #ef4444;
+        }
+
+        .seat-container {
+            background: #2d2d2d;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            contain: layout style paint;
+            will-change: contents;
+        }
+
+        /* Consistent seat styling */
+        .seat {
+            width: 55px;
+            height: 55px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid rgba(255,255,255,0.2);
+            position: relative;
+            will-change: transform, box-shadow;
+            contain: layout paint;
+        }
+
+        .seat:hover:not(.booked):not(.held) {
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .seat.available {
+            background: #10b981;
+            color: white;
+        }
+
+        .seat.held {
+            background: #ff6b6b;
+            color: white;
+            animation: pulseSeat 2s infinite;
+        }
+
+        .seat.booked {
+            background: #ef4444;
+            color: white;
+            cursor: not-allowed;
+        }
+
+        .seat.my-hold {
+            background: #ff6b6b;
+            color: white;
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.6);
+            animation: glow 2s infinite;
+        }
+
+        @keyframes pulseSeat {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes glow {
+            0%, 100% { 
+                box-shadow: 0 0 25px rgba(59, 130, 246, 0.6);
+            }
+            50% { 
+                box-shadow: 0 0 40px rgba(59, 130, 246, 1);
+            }
+        }
+
+        /* Theater Layout */
+        .theater-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            justify-content: center;
+        }
+
+        .row-label {
+            width: 40px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            color: #94a3b8;
+            margin-right: 15px;
+        }
+
+        .row-seats {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .aisle-gap {
+            width: 40px;
+        }
+
+        .screen {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #ff6b6b, #fa5252);
+            border-radius: 10px 10px 50% 50%;
+            margin-bottom: 40px;
+            font-size: 1.4em;
+            font-weight: bold;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Concert Layout */
+        .concert-layout {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .stage {
+            text-align: center;
+            padding: 25px;
+            background: #3d3d3d;
+            border: 2px solid #4d4d4d;
+            border-radius: 10px;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .concert-section {
+            margin-bottom: 30px;
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #3d3d3d;
+        }
+
+        .section-header {
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: bold;
+            padding: 12px;
+            color: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .vip-header {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+        }
+
+        .ga-header {
+            background: linear-gradient(135deg, #06b6d4, #0ea5e9);
+        }
+
+        .bal-header {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .section-seats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 10px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-confirm {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-confirm:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-release {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-release:hover:not(:disabled) {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message-box {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message-box.info {
+            background: #1e3a8a;
+            color: #bfdbfe;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .message-box.error {
+            background: #7f1d1d;
+            color: #fecaca;
+            border-left: 4px solid #ef4444;
+        }
+
+        .message-box.success {
+            background: #064e3b;
+            color: #a7f3d0;
+            border-left: 4px solid #10b981;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            font-size: 1.5em;
+            color: #94a3b8;
+        }
+
+        .my-holds-info {
+            background: #1e3a8a;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            color: #bfdbfe;
+            font-weight: 500;
+        }
+
+        .my-holds-info.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="logo">🎟️ TicketHub</div>
+            <div class="nav-links">
+                <button class="back-btn" onclick="goBack()">← Back to Events</button>
+                <a href="browse.html" class="nav-link">Browse Events</a>
+                <a href="bookings.html" class="nav-link">My Bookings</a>
+            </div>
+            <div class="user-info">
+                <span class="user-email" id="userEmail"></span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Hold Expiry Timer -->
+        <div id="holdExpiryTimer" class="hold-timer" style="display: none;">
+            <div class="timer-content">
+                <span class="timer-icon">⏱️</span>
+                <span id="timerText" class="timer-text">3 seats held • Expires in 4:32</span>
+            </div>
+            <div class="timer-progress-container">
+                <div id="timerProgress" class="timer-progress"></div>
+            </div>
+        </div>
+
+        <!-- Event Header -->
+        <div class="event-header">
+            <div>
+                <div class="event-title" id="eventName">Loading...</div>
+                <div class="event-subtitle" id="eventDetails"></div>
+            </div>
+            <div class="status-badge disconnected" id="wsStatus">Disconnected</div>
+        </div>
+
+        <div class="my-holds-info" id="myHoldsInfo"></div>
+
+        <div id="messageBox" class="message-box"></div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-box available"></div>
+                <span>Available</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box held"></div>
+                <span>Held by Others</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box my-hold"></div>
+                <span>Your Hold</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box booked"></div>
+                <span>Booked</span>
+            </div>
+        </div>
+
+        <!-- Seat Map -->
+        <div class="seat-container">
+            <div id="seatContainer" class="loading">
+                Connecting to event...
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="actions" id="actionButtons" style="display: none;">
+            <button class="btn-confirm" onclick="confirmBooking()" id="confirmBtn" disabled>Confirm Booking</button>
+            <button class="btn-release" onclick="releaseSeats()" id="releaseBtn" disabled>Release All Holds</button>
+        </div>
+
+        <!-- Selection Counter -->
+        <div class="selection-counter" id="selectionCounter">
+            <div class="selection-counter-content">
+                <div class="counter-info">
+                    <div class="counter-item">
+                        <span class="counter-label">Selected Seats</span>
+                        <span class="counter-value" id="selectedCount">0</span>
+                    </div>
+                    <div class="counter-item">
+                        <span class="counter-label">Total Price</span>
+                        <span class="counter-value" id="totalPrice">$0</span>
+                    </div>
+                </div>
+                <div class="counter-actions">
+                    <button class="modal-btn modal-btn-cancel" onclick="clearSelection()">Clear</button>
+                    <button class="modal-btn modal-btn-confirm" onclick="showConfirmationModal()">Review & Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div class="modal-overlay" id="confirmationModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Review Your Booking</h2>
+                    <p class="modal-subtitle">Please confirm your seat selection</p>
+                </div>
+
+                <div class="modal-section">
+                    <h3 class="modal-section-title">Event Details</h3>
+                    <p id="modalEventName" style="color: #cbd5e1;"></p>
+                </div>
+
+                <div class="modal-section">
+                    <h3 class="modal-section-title">Selected Seats</h3>
+                    <div class="seat-list" id="modalSeatList"></div>
+                </div>
+
+                <div class="modal-section">
+                    <h3 class="modal-section-title">Price Summary</h3>
+                    <div class="price-breakdown">
+                        <div class="price-row">
+                            <span>Subtotal (<span id="modalSeatCount">0</span> seats)</span>
+                            <span id="modalSubtotal">$0.00</span>
+                        </div>
+                        <div class="price-row">
+                            <span>Service Fee</span>
+                            <span id="modalServiceFee">$2.00</span>
+                        </div>
+                        <div class="price-row total">
+                            <span>Total</span>
+                            <span id="modalTotal">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="modal-btn modal-btn-cancel" onclick="closeConfirmationModal()">Cancel</button>
+                    <button class="modal-btn modal-btn-confirm" onclick="confirmBookingFromModal()">Confirm Booking</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let token = sessionStorage.getItem('token');
+        let userEmail = sessionStorage.getItem('userEmail');
+        let currentEventId = null;
+        let myHeldSeatIds = new Set();
+        let holdExpiryTime = null;
+        let timerInterval = null;
+
+        if (!token) {
+            window.location.href = 'index.html';
+        }
+
+        document.getElementById('userEmail').textContent = userEmail;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        currentEventId = urlParams.get('event');
+
+        if (!currentEventId) {
+            toast.error('No event selected');
+            setTimeout(() => window.location.href = 'browse.html', 2000);
+        }
+
+        // Seat Prices
+        const SEAT_PRICES = {
+            'VIP': 25,
+            'GA': 15,
+            'BAL': 10,
+            'default': 12
+        };
+
+        function getSeatPrice(seatNumber) {
+            if (seatNumber.startsWith('VIP-')) return SEAT_PRICES.VIP;
+            if (seatNumber.startsWith('GA-')) return SEAT_PRICES.GA;
+            if (seatNumber.startsWith('BAL-')) return SEAT_PRICES.BAL;
+            return SEAT_PRICES.default;
+        }
+
+        async function loadEventDetails() {
+            try {
+                const response = await fetch(`http://localhost:8001/events/${currentEventId}`);
+                const event = await response.json();
+
+                if (event) {
+                    document.getElementById('eventName').textContent = event.name;
+                    const startTime = new Date(event.start_time);
+                    document.getElementById('eventDetails').textContent = 
+                        `${event.venue} • ${startTime.toLocaleDateString()} at ${startTime.toLocaleTimeString()}`;
+                    
+                    connectToEvent();
+                } else {
+                    toast.error('Event not found');
+                    setTimeout(() => window.location.href = 'browse.html', 2000);
+                }
+            } catch (error) {
+                toast.error('Failed to load event details');
+            }
+        }
+
+        function connectToEvent() {
+            if (ws) ws.close();
+
+            myHeldSeatIds.clear();
+            stopHoldTimer();
+            updateHoldsInfo();
+
+            loadSeatsViaREST().then(() => {
+                connectWebSocket();
+            });
+        }
+
+        async function loadSeatsViaREST() {
+            try {
+                const totalStart = performance.now();
+                
+                const fetchStart = performance.now();
+                const response = await fetch(`http://localhost:8002/events/${currentEventId}/seats/fast`);
+                const fetchTime = performance.now() - fetchStart;
+                console.log(`📡 Fetch time: ${fetchTime.toFixed(0)}ms`);
+                
+                const parseStart = performance.now();
+                const data = await response.json();
+                const parseTime = performance.now() - parseStart;
+                console.log(`📄 JSON parse time: ${parseTime.toFixed(0)}ms`);
+                
+                const renderStart = performance.now();
+                renderSeats(data.seats);
+                const renderTime = performance.now() - renderStart;
+                console.log(`🎨 Render time: ${renderTime.toFixed(0)}ms`);
+                
+                await restoreMyHolds();
+                
+                const totalTime = performance.now() - totalStart;
+                console.log(`⏱️ TOTAL time: ${totalTime.toFixed(0)}ms`);
+                
+                document.getElementById('actionButtons').style.display = 'flex';
+                toast.success(`Seats loaded! (${totalTime.toFixed(0)}ms total)`);
+                
+            } catch (error) {
+                console.error('Failed to load seats via REST:', error);
+                toast.info('Loading seats...');
+                connectWebSocket();
+            }
+        }
+
+        async function restoreMyHolds() {
+            try {
+                const response = await fetch(`http://localhost:8002/my-holds/${currentEventId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) return;
+                
+                const data = await response.json();
+                
+                if (data.held_seats && data.held_seats.length > 0) {
+                    data.held_seats.forEach(seat => {
+                        myHeldSeatIds.add(seat.seat_id);
+                        
+                        const seatDiv = document.querySelector(`[data-seat-id="${seat.seat_id}"]`);
+                        if (seatDiv) {
+                            seatDiv.classList.remove('held');
+                            seatDiv.classList.add('my-hold');
+                        }
+                    });
+                    
+                    document.getElementById('confirmBtn').disabled = false;
+                    document.getElementById('releaseBtn').disabled = false;
+                    
+                    if (data.hold_expires_at) {
+                        startHoldTimer(data.hold_expires_at);
+                    }
+                    
+                    updateHoldsInfo();
+                    updateSelectionCounter();
+                    console.log(`✅ Restored ${data.held_seats.length} held seats`);
+                }
+            } catch (error) {
+                console.error('Failed to restore holds:', error);
+            }
+        }
+
+        function connectWebSocket() {
+            ws = new WebSocket(`ws://localhost:8002/ws/events/${currentEventId}`);
+
+            ws.onopen = () => {
+                document.getElementById('wsStatus').textContent = 'Connected';
+                document.getElementById('wsStatus').className = 'status-badge connected';
+                console.log('✅ WebSocket connected for real-time updates');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'initial') {
+                    console.log('ℹ️ Ignoring WebSocket initial data (already loaded via REST)');
+                } else if (data.type === 'seat_update') {
+                    updateSeat(data);
+                } else if (data.type === 'pong') {
+                    // Keep-alive
+                }
+            };
+
+            ws.onerror = () => {
+                console.error('WebSocket error');
+            };
+
+            ws.onclose = () => {
+                document.getElementById('wsStatus').textContent = 'Disconnected';
+                document.getElementById('wsStatus').className = 'status-badge disconnected';
+                console.log('❌ WebSocket disconnected');
+                
+                setTimeout(() => {
+                    if (!ws || ws.readyState === WebSocket.CLOSED) {
+                        console.log('🔄 Reconnecting WebSocket...');
+                        connectWebSocket();
+                    }
+                }, 3000);
+            };
+        }
+
+        function renderSeats(seats) {
+            const container = document.getElementById('seatContainer');
+            container.innerHTML = '';
+
+            const isMovie = seats.some(s => /^[A-Z]\d+$/.test(s.seat_number));
+            const isConcert = seats.some(s => /^(VIP|GA|BAL)-/.test(s.seat_number));
+
+            if (isMovie) {
+                renderMovieSeats(seats, container);
+            } else if (isConcert) {
+                renderConcertSeats(seats, container);
+            }
+        }
+
+        function renderMovieSeats(seats, container) {
+            const rows = {};
+            seats.forEach(seat => {
+                const row = seat.seat_number.match(/^([A-Z])/)?.[1];
+                if (row) {
+                    if (!rows[row]) rows[row] = [];
+                    rows[row].push(seat);
+                }
+            });
+
+            const sortedRows = Object.keys(rows).sort();
+
+            const screen = document.createElement('div');
+            screen.className = 'screen';
+            screen.textContent = '🎬 SCREEN 🎬';
+            container.appendChild(screen);
+
+            sortedRows.forEach(rowLetter => {
+                const rowSeats = rows[rowLetter].sort((a, b) => {
+                    const numA = parseInt(a.seat_number.match(/\d+/)?.[0] || 0);
+                    const numB = parseInt(b.seat_number.match(/\d+/)?.[0] || 0);
+                    return numA - numB;
+                });
+
+                const rowContainer = document.createElement('div');
+                rowContainer.className = 'theater-row';
+
+                const label = document.createElement('div');
+                label.className = 'row-label';
+                label.textContent = rowLetter;
+                rowContainer.appendChild(label);
+
+                const seatsContainer = document.createElement('div');
+                seatsContainer.className = 'row-seats';
+
+                rowSeats.forEach((seat, index) => {
+                    if (index === Math.floor(rowSeats.length / 2)) {
+                        const aisle = document.createElement('div');
+                        aisle.className = 'aisle-gap';
+                        seatsContainer.appendChild(aisle);
+                    }
+
+                    const seatDiv = createSeatElement(seat);
+                    seatsContainer.appendChild(seatDiv);
+                });
+
+                rowContainer.appendChild(seatsContainer);
+                container.appendChild(rowContainer);
+            });
+        }
+
+        function renderConcertSeats(seats, container) {
+            const vipSeats = seats.filter(s => s.seat_number.startsWith('VIP-'));
+            const gaSeats = seats.filter(s => s.seat_number.startsWith('GA-'));
+            const balSeats = seats.filter(s => s.seat_number.startsWith('BAL-'));
+
+            const sortSeats = (arr) => arr.sort((a, b) => {
+                const numA = parseInt(a.seat_number.split('-')[1]);
+                const numB = parseInt(b.seat_number.split('-')[1]);
+                return numA - numB;
+            });
+
+            sortSeats(vipSeats);
+            sortSeats(gaSeats);
+            sortSeats(balSeats);
+
+            const layout = document.createElement('div');
+            layout.className = 'concert-layout';
+
+            const stage = document.createElement('div');
+            stage.className = 'stage';
+            stage.textContent = '🎤 STAGE 🎸';
+            layout.appendChild(stage);
+
+            if (vipSeats.length > 0) {
+                layout.appendChild(createSimpleSection('⭐ VIP SECTION', 'vip-header', vipSeats));
+            }
+
+            if (gaSeats.length > 0) {
+                layout.appendChild(createSimpleSection('🎫 GENERAL ADMISSION', 'ga-header', gaSeats));
+            }
+
+            if (balSeats.length > 0) {
+                layout.appendChild(createSimpleSection('🎭 BALCONY', 'bal-header', balSeats));
+            }
+
+            container.appendChild(layout);
+        }
+
+        function createSimpleSection(title, headerClass, seats) {
+            const section = document.createElement('div');
+            section.className = 'concert-section';
+
+            const header = document.createElement('div');
+            header.className = `section-header ${headerClass}`;
+            header.textContent = title;
+            section.appendChild(header);
+
+            const grid = document.createElement('div');
+            grid.className = 'section-seats-grid';
+
+            seats.forEach(seat => {
+                grid.appendChild(createSeatElement(seat));
+            });
+
+            section.appendChild(grid);
+            return section;
+        }
+
+        function createSeatElement(seat) {
+            const seatDiv = document.createElement('div');
+            seatDiv.className = `seat ${seat.status}`;
+            seatDiv.textContent = seat.seat_number;
+            seatDiv.dataset.seatId = seat.id;
+            seatDiv.dataset.status = seat.status;
+            seatDiv.dataset.seatNumber = seat.seat_number;
+            
+            // Add price badge
+            const price = getSeatPrice(seat.seat_number);
+            const priceBadge = document.createElement('span');
+            priceBadge.className = 'seat-price';
+            priceBadge.textContent = `$${price}`;
+            seatDiv.appendChild(priceBadge);
+            
+            if (seat.status === 'available') {
+                seatDiv.onclick = () => holdSeatInstantly(seat.id, seat.seat_number);
+            }
+            
+            return seatDiv;
+        }
+
+        async function holdSeatInstantly(seatId, seatNumber) {
+            if (!token) {
+                toast.error('Please login first');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8002/hold', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        event_id: parseInt(currentEventId),
+                        seat_id: seatId
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    myHeldSeatIds.add(seatId);
+                    
+                    const seatDiv = document.querySelector(`[data-seat-id="${seatId}"]`);
+                    if (seatDiv) {
+                        seatDiv.classList.remove('available');
+                        seatDiv.classList.add('my-hold');
+                        seatDiv.onclick = null;
+                    }
+                    
+                    document.getElementById('confirmBtn').disabled = false;
+                    document.getElementById('releaseBtn').disabled = false;
+                    
+                    if (data.hold_expires_at) {
+                        startHoldTimer(data.hold_expires_at);
+                    }
+                    
+                    updateHoldsInfo();
+                    updateSelectionCounter();
+                    toast.success(`Seat ${seatNumber} held!`);
+                } else {
+                    toast.error(data.message);
+                }
+            } catch (error) {
+                toast.error('Failed to hold seat: ' + error.message);
+            }
+        }
+
+        function updateSeat(data) {
+            const seatDiv = document.querySelector(`[data-seat-id="${data.seat_id}"]`);
+            if (!seatDiv) return;
+
+            seatDiv.classList.remove('available', 'held', 'booked', 'my-hold');
+            seatDiv.classList.add(data.status);
+            seatDiv.dataset.status = data.status;
+            
+            if (data.status === 'available') {
+                seatDiv.onclick = () => holdSeatInstantly(data.seat_id, data.seat_number);
+            } else {
+                seatDiv.onclick = null;
+            }
+        }
+
+        function updateHoldsInfo() {
+            const info = document.getElementById('myHoldsInfo');
+            if (myHeldSeatIds.size > 0) {
+                info.textContent = `You are holding ${myHeldSeatIds.size} seat${myHeldSeatIds.size > 1 ? 's' : ''}. Holds expire in 5 minutes.`;
+                info.classList.add('active');
+            } else {
+                info.classList.remove('active');
+            }
+        }
+
+        function updateSelectionCounter() {
+            const count = myHeldSeatIds.size;
+            const counter = document.getElementById('selectionCounter');
+            
+            if (count > 0) {
+                counter.classList.add('active');
+                document.getElementById('selectedCount').textContent = count;
+                
+                let total = 0;
+                myHeldSeatIds.forEach(seatId => {
+                    const seatDiv = document.querySelector(`[data-seat-id="${seatId}"]`);
+                    if (seatDiv) {
+                        const seatNumber = seatDiv.dataset.seatNumber;
+                        total += getSeatPrice(seatNumber);
+                    }
+                });
+                
+                document.getElementById('totalPrice').textContent = `$${total}`;
+            } else {
+                counter.classList.remove('active');
+            }
+        }
+
+        function clearSelection() {
+            if (myHeldSeatIds.size === 0) return;
+            
+            if (confirm('Clear all selected seats?')) {
+                releaseSeats();
+            }
+        }
+
+        function showConfirmationModal() {
+            if (myHeldSeatIds.size === 0) {
+                toast.warning('Please select at least one seat');
+                return;
+            }
+            
+            const eventName = document.getElementById('eventName').textContent;
+            document.getElementById('modalEventName').textContent = eventName;
+            
+            const seatList = document.getElementById('modalSeatList');
+            seatList.innerHTML = '';
+            
+            let subtotal = 0;
+            
+            myHeldSeatIds.forEach(seatId => {
+                const seatDiv = document.querySelector(`[data-seat-id="${seatId}"]`);
+                if (seatDiv) {
+                    const seatNumber = seatDiv.dataset.seatNumber;
+                    const price = getSeatPrice(seatNumber);
+                    subtotal += price;
+                    
+                    const chip = document.createElement('div');
+                    chip.className = 'seat-chip';
+                    chip.innerHTML = `
+                        <span>💺 ${seatNumber}</span>
+                        <span class="seat-chip-price">$${price}</span>
+                    `;
+                    seatList.appendChild(chip);
+                }
+            });
+            
+            const serviceFee = 2.00;
+            const total = subtotal + serviceFee;
+            
+            document.getElementById('modalSeatCount').textContent = myHeldSeatIds.size;
+            document.getElementById('modalSubtotal').textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById('modalServiceFee').textContent = `$${serviceFee.toFixed(2)}`;
+            document.getElementById('modalTotal').textContent = `$${total.toFixed(2)}`;
+            
+            document.getElementById('confirmationModal').classList.add('active');
+        }
+
+        function closeConfirmationModal() {
+            document.getElementById('confirmationModal').classList.remove('active');
+        }
+
+        function triggerConfetti() {
+            const duration = 3000;
+            const animationEnd = Date.now() + duration;
+            
+            const interval = setInterval(() => {
+                const timeLeft = animationEnd - Date.now();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    return;
+                }
+                
+                confetti({
+                    particleCount: 3,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#ff6b6b', '#fa5252', '#10b981', '#ff6b6b']
+                });
+                
+                confetti({
+                    particleCount: 3,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#ff6b6b', '#fa5252', '#10b981', '#ff6b6b']
+                });
+            }, 30);
+        }
+
+        async function confirmBookingFromModal() {
+            closeConfirmationModal();
+            await confirmBooking();
+        }
+
+        function startHoldTimer(expiryTimeString) {
+            const isoString = expiryTimeString.endsWith('Z') ? expiryTimeString : expiryTimeString + 'Z';
+            holdExpiryTime = new Date(isoString);
+            
+            document.getElementById('holdExpiryTimer').style.display = 'block';
+            
+            if (timerInterval) clearInterval(timerInterval);
+            
+            updateTimer();
+            
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            if (!holdExpiryTime) return;
+            
+            const now = new Date();
+            const remaining = holdExpiryTime - now;
+            
+            if (remaining <= 0) {
+                handleExpiredHolds();
+                return;
+            }
+            
+            const totalSeconds = Math.floor(remaining / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            
+            const timerText = document.getElementById('timerText');
+            const seatCount = myHeldSeatIds.size;
+            timerText.textContent = `${seatCount} seat${seatCount > 1 ? 's' : ''} held • Expires in ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            const totalTime = 5 * 60;
+            const percentage = (totalSeconds / totalTime) * 100;
+            document.getElementById('timerProgress').style.width = `${percentage}%`;
+            
+            const timer = document.getElementById('holdExpiryTimer');
+            timer.classList.remove('warning', 'danger');
+            
+            if (totalSeconds <= 60) {
+                timer.classList.add('danger');
+            } else if (totalSeconds <= 180) {
+                timer.classList.add('warning');
+            }
+        }
+
+        async function handleExpiredHolds() {
+            stopHoldTimer();
+            toast.error('⏰ Your holds have expired and been released');
+            
+            if (myHeldSeatIds.size > 0) {
+                const expiredSeats = Array.from(myHeldSeatIds);
+                
+                expiredSeats.forEach(seatId => {
+                    const seatDiv = document.querySelector(`[data-seat-id="${seatId}"]`);
+                    if (seatDiv) {
+                        seatDiv.classList.remove('my-hold');
+                        seatDiv.classList.add('available');
+                        seatDiv.onclick = () => holdSeatInstantly(seatId, seatDiv.textContent.trim());
+                    }
+                });
+                
+                myHeldSeatIds.clear();
+                document.getElementById('confirmBtn').disabled = true;
+                document.getElementById('releaseBtn').disabled = true;
+                updateHoldsInfo();
+                updateSelectionCounter();
+                
+                try {
+                    await fetch('http://localhost:8002/release', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(expiredSeats)
+                    });
+                } catch (error) {
+                    console.log('Cleanup task may have already released seats');
+                }
+            }
+        }
+
+        function stopHoldTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            holdExpiryTime = null;
+            document.getElementById('holdExpiryTimer').style.display = 'none';
+        }
+
+        async function confirmBooking() {
+            if (myHeldSeatIds.size === 0) return;
+
+            try {
+                const response = await fetch('http://localhost:8002/confirm', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        seat_ids: Array.from(myHeldSeatIds) 
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    myHeldSeatIds.clear();
+                    stopHoldTimer();
+                    document.getElementById('confirmBtn').disabled = true;
+                    document.getElementById('releaseBtn').disabled = true;
+                    updateHoldsInfo();
+                    updateSelectionCounter();
+                    
+                    // Trigger confetti!
+                    triggerConfetti();
+                    
+                    // Show success toast
+                    toast.success(`🎉 Booking confirmed! ${data.confirmed_seats.length} seat(s) booked successfully!`, 5000);
+                    
+                    setTimeout(() => {
+                        window.location.href = 'bookings.html';
+                    }, 3000);
+                } else {
+                    toast.error(data.message);
+                }
+            } catch (error) {
+                toast.error('Confirmation error: ' + error.message);
+            }
+        }
+
+        async function releaseSeats() {
+            if (myHeldSeatIds.size === 0) return;
+
+            try {
+                const response = await fetch('http://localhost:8002/release', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(Array.from(myHeldSeatIds))
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    toast.success(data.message);
+                    myHeldSeatIds.clear();
+                    stopHoldTimer();
+                    document.getElementById('confirmBtn').disabled = true;
+                    document.getElementById('releaseBtn').disabled = true;
+                    updateHoldsInfo();
+                    updateSelectionCounter();
+                } else {
+                    toast.error('Release failed');
+                }
+            } catch (error) {
+                toast.error('Release error: ' + error.message);
+            }
+        }
+
+        function showMessage(message, type) {
+            const box = document.getElementById('messageBox');
+            box.className = `message-box ${type}`;
+            box.textContent = message;
+            box.style.display = 'block';
+            
+            setTimeout(() => {
+                box.style.display = 'none';
+            }, 5000);
+        }
+
+        function goBack() {
+            window.location.href = 'browse.html';
+        }
+
+        function logout() {
+            if (ws) ws.close();
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        }
+
+        loadEventDetails();
+    </script>
+</body>
+</html>
