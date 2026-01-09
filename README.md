@@ -196,7 +196,6 @@ Response Times:
   Average: 151ms
   Min: 126ms
   Max: 207ms
-================================================================================
 ```
 
 ### What This Proves
@@ -325,3 +324,4 @@ docker-compose down -v       # Stop + delete volumes (fresh start)
 
 
 ---
+
